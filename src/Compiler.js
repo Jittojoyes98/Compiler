@@ -1,15 +1,107 @@
 import React,{useState} from 'react'
 import File from './File'
+// import * as vision from "@google-cloud/vision"
 
-// import axios from 'axios'
+import axios from 'axios'
+import { storage } from './firebase';
 
 export default function Compiler() {
-
+  // console.log(vision)
   const [state,setState]=useState({
   input: localStorage.getItem('input')||``,
   output: ``,
-  language_id:localStorage.getItem('language_Id')|| 0,
+  language_id:'c',
   user_input: ``,})
+  const [url,setUrl]=useState("")
+  const [fileDetails,setFileDetails]=useState()
+  const [isFileSelected,setIsFileSelected]=useState(false)
+  const [progress,setProgress]=useState(0)
+  const handleFile=(event)=>{
+    console.log(event.target.files[0])
+    setFileDetails(event.target.files[0])
+    if(event.target.files.length!==0){
+      setIsFileSelected(true)
+    }
+  }
+
+  const convertText=async(imageUrl)=>{
+    console.log('Hello there')
+    var data=JSON.stringify({
+    "requests": [
+        {
+        "features": [
+            {
+            "type": "TEXT_DETECTION"
+            }
+        ],
+        "image": {
+            "source": {
+            "imageUri": `${imageUrl}`
+            
+            }
+        }
+        }
+    ]
+    })
+    var config = {
+        method: 'post',
+        headers: { 
+            'Accept': 'application/json',
+            'Content-Type': 'application/json;charset=UTF-8'
+        },
+        body : data
+    };  
+    var url='https://vision.googleapis.com/v1/images:annotate?key=AIzaSyBEhsW3acStVhyZ01fy9CMU9vfPV8sl-NM'
+    let response=await fetch(url, config)
+    response=await response.json()
+
+    // const inputText=document.getElementById('user-code')
+    // console.log(inputText)
+    // setState({...state,input:""})
+    if(typeof(response.responses)==="undefined"){
+      // inputText.value="Not working!!"
+      setState({...state,input:"Please try again you may have a slow internet connection..."})
+      // localStorage.setItem('input', "Not working!!") 
+    }else{
+      const [{fullTextAnnotation}]=response.responses
+      // inputText.value=fullTextAnnotation.text
+      // console.log(fullTextAnnotation.text)
+      setState({...state,input:fullTextAnnotation.text})
+      localStorage.setItem('input',fullTextAnnotation.text) 
+    }
+  }
+  
+  const handleUpload=async()=>{
+    if(isFileSelected===true){
+      // setUrl(URL.createObjectURL(fileDetails))
+      const uploadTask=storage.ref(`images/${fileDetails.name}`).put(fileDetails)
+      uploadTask.on(
+        "state_changed",
+        snapshot => {
+          const progress=Math.round(
+            (snapshot.bytesTransferred/snapshot.totalBytes)*100
+          )
+          setProgress(progress)
+        },
+        error => {
+          console.log(error)
+        },
+        ()=>{
+          storage
+            .ref("images")
+            .child(fileDetails.name)
+            .getDownloadURL()
+            .then((url)=>{
+              // console.log(url)
+              setUrl(url)
+            })
+        }
+      )
+      // console.log(progress)
+      convertText(url)
+      
+    }
+  }
 
   const userCode=(event)=>{
     event.preventDefault()
@@ -22,12 +114,12 @@ export default function Compiler() {
   const userLanguage=(event)=>{
     event.preventDefault()
     setState({...state,language_id:event.target.value})
-    localStorage.setItem('language_Id',event.target.value)
+    // localStorage.setItem('language_Id',event.target.value)
   }
 
   const userInput=(event)=>{
     event.preventDefault()
-    setState({...state,user_input:event.target.value})
+    setState({...state,user_input:event.target.value});
   }
 
   const  codeSubmit=async(event)=>{
@@ -35,75 +127,19 @@ export default function Compiler() {
     let outputText=document.getElementById('output')
     outputText.innerHTML=""
     outputText.innerHTML+="Making submission....\n"
-    let response=await fetch(
-      "https://judge0-ce.p.rapidapi.com/submissions/?base64_encoded=false&wait=false",
-      {
-        method: "POST",
-        headers: {
-          "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
-          "x-rapidapi-key": "0f2f32d7f1mshed008fbf6ac9bb1p137b7cjsn1829abc464bf", // Get yours for free at https://rapidapi.com/judge0-official/api/judge0-ce/
-          "content-type": "application/json",
-          accept: "application/json",
-        },
-        body: JSON.stringify({
-          source_code: state.input,
-          stdin: state.user_input,
-          language_id: state.language_id,
-        }),
-      }
-    );
-    response=await response.json()
-    // console.log(response)
-  
-
-    let jsonSolution={
-      status: { description: "Queue" },
-      stderr: null,
-      compile_output: null,
-    };
-
-    while(jsonSolution.status.description!=="Accepted" && jsonSolution.stderr == null &&
-    jsonSolution.compile_output == null){
-      if(response.token){
-        let url = `https://judge0-ce.p.rapidapi.com/submissions/${response.token}?base64_encoded=true`;
-        const getSolution = await fetch(url, {
-          method: "GET",
-          headers: {
-            "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
-            "x-rapidapi-key": "0f2f32d7f1mshed008fbf6ac9bb1p137b7cjsn1829abc464bf", // Get yours for free at https://rapidapi.com/judge0-official/api/judge0-ce/
-            "content-type": "application/json",
-          },
-        });
-        jsonSolution=await getSolution.json()
-        // console.log(jsonSolution)
-      }
-      async function b64_to_utf8(str){
-        try{
-          return decodeURIComponent(escape(window.atob( str )));
-        }catch(e){
-          return e;
-        }
-      }
-      if (jsonSolution.stdout) {
-        const output = atob(jsonSolution.stdout)
-        console.log("Yes")
-        outputText.innerHTML = "";
-        outputText.innerHTML += `Results :\n${output}\nExecution Time : ${jsonSolution.time} Secs\nMemory used : ${jsonSolution.memory} bytes`;
-        
-      } else if (jsonSolution.stderr) {
-        // console.log("Yes")
-        const error =await b64_to_utf8(jsonSolution.stderr);
-        outputText.innerHTML = "";
-        outputText.innerHTML += `\n Error :${error}`;
-        
-      } else {
-        // console.log("No")
-        const compilation_error = await b64_to_utf8(jsonSolution.compile_output);
-        outputText.innerHTML = "";
-        outputText.innerHTML += `\n Error :${compilation_error}`;
-        
-      }
+    // console.log(state.language_id)
+    var data = {
+      "code":state.input,
+      "language":state.language_id,
+      "input":state.user_input
     }
+    let res=await axios.post('https://cors-anywhere-jaagrav.herokuapp.com/https://codexweb.netlify.app/.netlify/functions/enforceCode',data,{
+			headers:{
+				'Content-Type': 'application/json',
+			}
+		})
+    outputText.innerHTML=res.data.output
+    // console.log(res.data.output)
 
   }
 
@@ -120,7 +156,7 @@ export default function Compiler() {
               placeholder="Enter the code"
               required
               name="solution"
-              id="source"
+              id="user-code"
               className=" source bg-red-100 h-3/4 w-7/12 caret-black mr-64  p-2 border-2 border-slate-300 resize-none" 
             ></textarea>
             
@@ -130,15 +166,20 @@ export default function Compiler() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>Run Code</button>
               <label className='mt-2' htmlFor='lan'>Language</label>
               <select id='lan' className='ml-2 p-2' value={state.language_id} onChange={userLanguage}>
-                <option value='50'>C</option>
-                <option value="54">C++</option>
-                <option value="62">Java</option>
-                <option value="71">Python</option>
+                <option value='c'>C</option>
+                <option value="cpp">C++</option>
+                <option value="java">Java</option>
+                <option value="py">Python</option>
               </select>
 
             </div>
-            <File/>
-    
+            <div className=' mr-56'>
+              <progress value={progress} max="100"className=' block'/>
+              {/* {isFileSelected && <img alt="not fount" width={"250px"} src={URL.createObjectURL(fileDetails)} />} */}
+              <input type="file" onChange={handleFile} className=' file:text-white file:bg-blue-500 file:p-2 file:rounded file:mt-1 file:ml-0 w-1/2 hover:file:bg-blue-600'/>
+              <button type='submit' onClick={handleUpload} className=" bg-green-600 p-2 rounded border-2 hover:border-slate-300 text-white">Upload</button>
+            </div>
+        
         </div>
         <div className='w-1/2 h-screen'>
            

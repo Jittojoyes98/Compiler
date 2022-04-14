@@ -2,28 +2,36 @@ import './App.css';
 import Compiler from './Compiler';
 import React, { useEffect, useState } from 'react';
 import { createWorker } from 'tesseract.js';
-function App() {
-  const worker = createWorker({
-    logger: m => console.log(m),
-  });
-  const doOCR = async () => {
-    await worker.load();
-    await worker.loadLanguage('eng');
-    await worker.initialize('eng');
-    const { data: { text } } = await worker.recognize('https://tesseract.projectnaptha.com/img/eng_bw.png');
-    setOcr(text);
-    // console.log("Hii")
-  };
-  const [ocr, setOcr] = useState('Recognizing...');
-  useEffect(() => {
-    doOCR();
-  });
+import Tessaract from './Tessaract';
+import File from './File';
+export default function App() {
+  
+  const [url,setUrl]=useState("")
+  // const worker = createWorker({
+  //   // logger: m => console.log(m),
+  // });
+  // const doOCR = async () => {
+  //   await worker.load();
+  //   await worker.loadLanguage('eng');
+  //   await worker.initialize('eng');
+  //   // const text=""
+  //   const { data: { text } } = await worker.recognize(url);
+  //   setOcr(text);
+  // };
+  // const [ocr, setOcr] = useState('Recognizing...');
+  // useEffect(() => {
+  //   if(url!==""){
+  //     doOCR();
+  //   }
+  // },[url]);
   return (
     <div className="App">
       <Compiler/>
-      <p>{ocr}</p>
+      {/* <File setUrl={setUrl} url={url}/> */}
+      
+      {/* <p>{ocr}</p> */}
     </div>
   );
 }
 
-export default App;
+// export default App;
