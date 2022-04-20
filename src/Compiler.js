@@ -25,7 +25,7 @@ export default function Compiler() {
   }
 
   const convertText=async(imageUrl)=>{
-    console.log('Hello there')
+    console.log('Uploading....')
     var data=JSON.stringify({
     "requests": [
         {
