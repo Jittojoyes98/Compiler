@@ -27,9 +27,6 @@ export default function App() {
   return (
     <div className="App">
       <Compiler/>
-      {/* <File setUrl={setUrl} url={url}/> */}
-      
-      {/* <p>{ocr}</p> */}
     </div>
   );
 }

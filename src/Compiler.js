@@ -31,7 +31,7 @@ export default function Compiler() {
         {
         "features": [
             {
-            "type": "TEXT_DETECTION"
+            "type": "DOCUMENT_TEXT_DETECTION"
             }
         ],
         "image": {
@@ -91,9 +91,9 @@ export default function Compiler() {
             .ref("images")
             .child(fileDetails.name)
             .getDownloadURL()
-            .then((url)=>{
+            .then((urlFromFirebase)=>{
               // console.log(url)
-              setUrl(url)
+              setUrl(urlFromFirebase)
             })
         }
       )
